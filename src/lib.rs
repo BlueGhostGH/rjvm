@@ -70,8 +70,9 @@ impl Class
                     }
 
                     8 => {
-                        dbg!(&pool);
-                        todo!("String")
+                        let string_index = cursor.read_integer::<u16>()?;
+
+                        Constant::String { string_index }
                     }
 
                     3 => {
@@ -169,7 +170,10 @@ enum Constant
         name_and_type_index: u16,
     },
     // InterfaceMethodRef
-    // String
+    String
+    {
+        string_index: u16
+    },
     // Integer
     // Float
     // Long
