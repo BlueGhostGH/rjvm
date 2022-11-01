@@ -2,9 +2,12 @@ use std::fmt;
 
 use crate::cursor::Cursor;
 
+struct Magic(u32);
+
+#[derive(Debug)]
 pub struct Class
 {
-    magic: u32,
+    magic: Magic,
 
     minor: u16,
     major: u16,
@@ -19,7 +22,7 @@ impl Class
     {
         let mut cursor = Cursor::new(bytes);
 
-        let magic = cursor.read_integer::<u32>();
+        let magic = Magic(cursor.read_integer::<u32>());
 
         let minor = cursor.read_integer::<u16>();
         let major = cursor.read_integer::<u16>();
@@ -40,30 +43,16 @@ impl Class
     }
 }
 
+#[derive(Debug)]
 struct ConstantPool
 {
     count: u16,
 }
 
-impl fmt::Debug for Class
+impl fmt::Debug for Magic
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
     {
-        f.debug_struct("Class")
-            .field("magic", &format!("{:x?}", self.magic))
-            .field("minor", &format!("{:x?}", self.minor))
-            .field("major", &format!("{:x?}", self.major))
-            .field("cp", &self.cp)
-            .finish()
-    }
-}
-
-impl fmt::Debug for ConstantPool
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-    {
-        f.debug_struct("ConstantPool")
-            .field("count", &format!("{:x?}", self.count))
-            .finish()
+        write!(f, "{:x?}", self.0)
     }
 }
