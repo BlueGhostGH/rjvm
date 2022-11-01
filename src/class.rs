@@ -87,8 +87,13 @@ impl Class
                     }
 
                     12 => {
-                        dbg!(&pool);
-                        todo!("NameAndType")
+                        let name_index = cursor.read_integer::<u16>();
+                        let descriptor_index = cursor.read_integer::<u16>();
+
+                        Constant::NameAndType {
+                            name_index,
+                            descriptor_index,
+                        }
                     }
 
                     1 => {
@@ -166,9 +171,12 @@ enum Constant
     // Float
     // Long
     // Double
-    // NameAndType
-    // Utf8
-    // MethodHandle
-    // MethodType
-    // InvokeDynamic
+    NameAndType
+    {
+        name_index: u16,
+        descriptor_index: u16,
+    }, // Utf8
+       // MethodHandle
+       // MethodType
+       // InvokeDynamic
 }
