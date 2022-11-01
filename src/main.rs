@@ -4,5 +4,5 @@ fn main()
 {
     let class = rjvm::Class::from_bytes(FILE);
 
-    println!("{:?}", class);
+    println!("{class:?}");
 }
