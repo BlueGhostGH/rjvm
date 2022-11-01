@@ -36,8 +36,9 @@ impl Class
 
                 let constant = match tag {
                     7 => {
-                        dbg!(&pool);
-                        todo!("Class")
+                        let name_index = cursor.read_integer::<u16>();
+
+                        Constant::Class { name_index }
                     }
 
                     9 => {
@@ -149,9 +150,25 @@ struct ConstantPool
 #[derive(Debug)]
 enum Constant
 {
+    Class
+    {
+        name_index: u16
+    },
+    // Field
     MethodRef
     {
         class_index: u16,
         name_and_type_index: u16,
     },
+    // InterfaceMethodRef
+    // String
+    // Integer
+    // Float
+    // Long
+    // Double
+    // NameAndType
+    // Utf8
+    // MethodHandle
+    // MethodType
+    // InvokeDynamic
 }
