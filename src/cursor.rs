@@ -1,5 +1,7 @@
 use std::mem;
 
+pub use self::error::{Error, Result};
+
 #[derive(Debug)]
 pub struct Cursor<'a>
 {
@@ -13,34 +15,45 @@ impl<'a> Cursor<'a>
         Self { bytes }
     }
 
-    pub fn read_integer<I>(&mut self) -> I
+    pub fn read_integer<I>(&mut self) -> Result<I>
     where
         I: Integer,
         [(); I::SIZE]:,
     {
-        I::from_be_bytes(self.read::<{ I::SIZE }>())
+        self.read::<{ I::SIZE }>().map(I::from_be_bytes)
     }
 
-    pub fn read_bytes(&mut self, count: usize) -> Box<[u8]>
+    pub fn read_bytes(&mut self, count: usize) -> Result<Box<[u8]>>
     {
-        assert!(count <= self.bytes.len());
+        if count > self.bytes.len() {
+            Err(Error::ReadPastEnd {
+                tried: count,
+                left: self.bytes.len(),
+            })
+        } else {
+            let bytes = &self.bytes[..count];
+            self.bytes = &self.bytes[count..];
 
-        let bytes = self.bytes[..count].into();
-
-        self.bytes = &self.bytes[count..];
-        bytes
+            Ok(bytes.into())
+        }
     }
 
-    fn read<const C: usize>(&mut self) -> [u8; C]
+    fn read<const C: usize>(&mut self) -> Result<[u8; C]>
     {
-        assert!(C <= self.bytes.len());
+        if C > self.bytes.len() {
+            Err(Error::ReadPastEnd {
+                tried: C,
+                left: self.bytes.len(),
+            })
+        } else {
+            let bytes = &self.bytes[..C];
+            self.bytes = &self.bytes[C..];
 
-        let bytes = self.bytes[..C]
-            .try_into()
-            .expect("Failed to turn bytes slice ref to bytes array");
-
-        self.bytes = &self.bytes[C..];
-        bytes
+            // This will never fail as we have sliced off
+            // exactly the length of our array from the
+            // inner bytes ref slice
+            Ok(bytes.try_into().unwrap())
+        }
     }
 }
 
@@ -70,5 +83,43 @@ impl Integer for u32
     fn from_be_bytes(bytes: [u8; Self::SIZE]) -> Self
     {
         Self::from_be_bytes(bytes)
+    }
+}
+
+mod error
+{
+    use std::{error, fmt, result};
+
+    pub type Result<T> = result::Result<T, Error>;
+
+    #[derive(Debug)]
+    pub enum Error
+    {
+        ReadPastEnd
+        {
+            tried: usize, left: usize
+        },
+    }
+
+    impl fmt::Display for Error
+    {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+        {
+            match self {
+                Error::ReadPastEnd { tried, left } => {
+                    write!(f, "tried reading {tried} bytes when only {left} are left")
+                }
+            }
+        }
+    }
+
+    impl error::Error for Error
+    {
+        fn source(&self) -> Option<&(dyn error::Error + 'static)>
+        {
+            match self {
+                _ => None,
+            }
+        }
     }
 }
