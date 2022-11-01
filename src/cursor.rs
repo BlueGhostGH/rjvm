@@ -25,7 +25,9 @@ impl<'a> Cursor<'a>
     {
         assert!(C <= self.bytes.len());
 
-        let bytes = self.bytes[..C].try_into().unwrap();
+        let bytes = self.bytes[..C]
+            .try_into()
+            .expect("Failed to turn bytes slice ref to bytes array");
 
         self.bytes = &self.bytes[C..];
         bytes

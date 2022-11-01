@@ -1,8 +1,8 @@
+#![allow(dead_code)]
+
 use std::fmt;
 
 use crate::cursor::Cursor;
-
-struct Magic(u32);
 
 #[derive(Debug)]
 pub struct Class
@@ -29,7 +29,94 @@ impl Class
 
         let cp = {
             let count = cursor.read_integer::<u16>();
-            ConstantPool { count }
+
+            let mut pool = Vec::with_capacity(count as usize - 1);
+            for _ in 0..count - 1 {
+                let tag = cursor.read_integer::<u8>();
+
+                let constant = match tag {
+                    7 => {
+                        dbg!(&pool);
+                        todo!("Class")
+                    }
+
+                    9 => {
+                        dbg!(&pool);
+                        todo!("FieldRef")
+                    }
+
+                    10 => {
+                        let class_index = cursor.read_integer::<u16>();
+                        let name_and_type_index = cursor.read_integer::<u16>();
+
+                        Constant::MethodRef {
+                            class_index,
+                            name_and_type_index,
+                        }
+                    }
+
+                    11 => {
+                        dbg!(&pool);
+                        todo!("InterfaceMethodRef")
+                    }
+
+                    8 => {
+                        dbg!(&pool);
+                        todo!("String")
+                    }
+
+                    3 => {
+                        dbg!(&pool);
+                        todo!("Integer")
+                    }
+
+                    4 => {
+                        dbg!(&pool);
+                        todo!("Float")
+                    }
+
+                    5 => {
+                        dbg!(&pool);
+                        todo!("Long")
+                    }
+
+                    6 => {
+                        dbg!(&pool);
+                        todo!("Double")
+                    }
+
+                    12 => {
+                        dbg!(&pool);
+                        todo!("NameAndType")
+                    }
+
+                    1 => {
+                        dbg!(&pool);
+                        todo!("Utf8")
+                    }
+
+                    15 => {
+                        dbg!(&pool);
+                        todo!("MethodHandle")
+                    }
+
+                    16 => {
+                        dbg!(&pool);
+                        todo!("MethodType")
+                    }
+
+                    18 => {
+                        dbg!(&pool);
+                        todo!("InvokeDynamic")
+                    }
+
+                    _ => panic!("Unexpected constant tag"),
+                };
+
+                pool.push(constant);
+            }
+
+            ConstantPool { pool }
         };
 
         Self {
@@ -43,11 +130,7 @@ impl Class
     }
 }
 
-#[derive(Debug)]
-struct ConstantPool
-{
-    count: u16,
-}
+struct Magic(u32);
 
 impl fmt::Debug for Magic
 {
@@ -55,4 +138,20 @@ impl fmt::Debug for Magic
     {
         write!(f, "{:x?}", self.0)
     }
+}
+
+#[derive(Debug)]
+struct ConstantPool
+{
+    pool: Vec<Constant>,
+}
+
+#[derive(Debug)]
+enum Constant
+{
+    MethodRef
+    {
+        class_index: u16,
+        name_and_type_index: u16,
+    },
 }
