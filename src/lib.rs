@@ -3,20 +3,19 @@
 
 mod cursor;
 
-use std::fmt;
-
 use self::cursor::Cursor;
 pub use self::error::{Error, Result};
 
 #[derive(Debug)]
 pub struct Class
 {
-    magic: Magic,
+    magic: u32,
 
     minor: u16,
     major: u16,
 
-    cp: ConstantPool,
+    constant_pool_count: u16,
+    constant_pool: Box<[Constant]>,
 }
 
 impl Class
@@ -26,12 +25,12 @@ impl Class
     {
         let mut cursor = Cursor::new(bytes);
 
-        let magic = Magic(cursor.read_integer::<u32>()?);
+        let magic = cursor.read_integer::<u32>()?;
 
         let minor = cursor.read_integer::<u16>()?;
         let major = cursor.read_integer::<u16>()?;
 
-        let cp = {
+        let (constant_pool_count, constant_pool) = {
             let count = cursor.read_integer::<u16>()?;
 
             let mut pool = Vec::with_capacity(count as usize - 1);
@@ -122,13 +121,15 @@ impl Class
                         todo!("InvokeDynamic")
                     }
 
-                    _ => panic!("Unexpected constant tag"),
+                    tag => Err(Error::UnexpectedConstantTag(tag))?,
                 };
 
                 pool.push(constant);
             }
 
-            ConstantPool { pool }
+            let pool = pool.into_boxed_slice();
+
+            (count, pool)
         };
 
         Ok(Self {
@@ -137,25 +138,10 @@ impl Class
             minor,
             major,
 
-            cp,
+            constant_pool_count,
+            constant_pool,
         })
     }
-}
-
-struct Magic(u32);
-
-impl fmt::Debug for Magic
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-    {
-        write!(f, "{:x?}", self.0)
-    }
-}
-
-#[derive(Debug)]
-struct ConstantPool
-{
-    pool: Vec<Constant>,
 }
 
 #[derive(Debug)]
@@ -203,11 +189,7 @@ mod error
     pub enum Error
     {
         Cursor(cursor::Error),
-        ReadPastEnd
-        {
-            tried: usize,
-            left: usize,
-        },
+        UnexpectedConstantTag(u8),
     }
 
     impl fmt::Display for Error
@@ -216,8 +198,8 @@ mod error
         {
             match self {
                 Error::Cursor(cursor_err) => write!(f, "{cursor_err}"),
-                Error::ReadPastEnd { tried, left } => {
-                    write!(f, "tried reading {tried} bytes when only {left} are left")
+                Error::UnexpectedConstantTag(tag) => {
+                    write!(f, "unexpected constant tag {tag}")
                 }
             }
         }
