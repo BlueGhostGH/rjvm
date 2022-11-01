@@ -45,8 +45,13 @@ impl Class
                     }
 
                     9 => {
-                        dbg!(&pool);
-                        todo!("FieldRef")
+                        let class_index = cursor.read_integer::<u16>()?;
+                        let name_and_type_index = cursor.read_integer::<u16>()?;
+
+                        Constant::FieldRef {
+                            class_index,
+                            name_and_type_index,
+                        }
                     }
 
                     10 => {
@@ -151,7 +156,13 @@ enum Constant
     {
         name_index: u16
     },
-    // Field
+
+    FieldRef
+    {
+        class_index: u16,
+        name_and_type_index: u16,
+    },
+
     MethodRef
     {
         class_index: u16,
@@ -168,6 +179,7 @@ enum Constant
         name_index: u16,
         descriptor_index: u16,
     },
+
     Utf8
     {
         length: u16, bytes: Box<[u8]>
