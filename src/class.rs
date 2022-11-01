@@ -4,22 +4,23 @@ use crate::cursor::Cursor;
 
 pub struct Class
 {
-    magic: [u8; 4],
+    magic: u32,
 
-    minor: [u8; 2],
-    major: [u8; 2],
+    minor: u16,
+    major: u16,
 }
 
 impl Class
 {
+    #[must_use]
     pub fn from_bytes(bytes: &[u8]) -> Self
     {
         let mut cursor = Cursor::new(bytes);
 
-        let magic = cursor.read::<4>();
+        let magic = cursor.read_integer::<u32>();
 
-        let minor = cursor.read::<2>();
-        let major = cursor.read::<2>();
+        let minor = cursor.read_integer::<u16>();
+        let major = cursor.read_integer::<u16>();
 
         Self {
             magic,

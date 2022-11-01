@@ -1,4 +1,4 @@
-use std::fmt;
+use std::mem;
 
 #[derive(Debug)]
 pub struct Cursor<'a>
@@ -8,12 +8,20 @@ pub struct Cursor<'a>
 
 impl<'a> Cursor<'a>
 {
-    pub fn new(bytes: &'a [u8]) -> Self
+    pub const fn new(bytes: &'a [u8]) -> Self
     {
         Self { bytes }
     }
 
-    pub fn read<const C: usize>(&mut self) -> [u8; C]
+    pub fn read_integer<I>(&mut self) -> I
+    where
+        I: Integer,
+        [(); I::SIZE]:,
+    {
+        I::from_be_bytes(self.read::<{ I::SIZE }>())
+    }
+
+    fn read<const C: usize>(&mut self) -> [u8; C]
     {
         assert!(C <= self.bytes.len());
 
@@ -21,5 +29,34 @@ impl<'a> Cursor<'a>
 
         self.bytes = &self.bytes[C..];
         bytes
+    }
+}
+
+pub trait Integer: Sized
+{
+    const SIZE: usize = mem::size_of::<Self>();
+
+    fn from_be_bytes(bytes: [u8; Self::SIZE]) -> Self;
+}
+
+impl Integer for u8
+{
+    fn from_be_bytes(bytes: [u8; Self::SIZE]) -> Self
+    {
+        Self::from_be_bytes(bytes)
+    }
+}
+impl Integer for u16
+{
+    fn from_be_bytes(bytes: [u8; Self::SIZE]) -> Self
+    {
+        Self::from_be_bytes(bytes)
+    }
+}
+impl Integer for u32
+{
+    fn from_be_bytes(bytes: [u8; Self::SIZE]) -> Self
+    {
+        Self::from_be_bytes(bytes)
     }
 }
