@@ -97,8 +97,10 @@ impl Class
                     }
 
                     1 => {
-                        dbg!(&pool);
-                        todo!("Utf8")
+                        let length = cursor.read_integer::<u16>();
+                        let bytes = cursor.read_bytes(length as usize);
+
+                        Constant::Utf8 { length, bytes }
                     }
 
                     15 => {
@@ -175,8 +177,12 @@ enum Constant
     {
         name_index: u16,
         descriptor_index: u16,
-    }, // Utf8
-       // MethodHandle
-       // MethodType
-       // InvokeDynamic
+    },
+    Utf8
+    {
+        length: u16, bytes: Box<[u8]>
+    },
+    // MethodHandle
+    // MethodType
+    // InvokeDynamic
 }

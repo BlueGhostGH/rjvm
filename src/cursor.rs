@@ -21,6 +21,16 @@ impl<'a> Cursor<'a>
         I::from_be_bytes(self.read::<{ I::SIZE }>())
     }
 
+    pub fn read_bytes(&mut self, count: usize) -> Box<[u8]>
+    {
+        assert!(count <= self.bytes.len());
+
+        let bytes = self.bytes[..count].into();
+
+        self.bytes = &self.bytes[count..];
+        bytes
+    }
+
     fn read<const C: usize>(&mut self) -> [u8; C]
     {
         assert!(C <= self.bytes.len());
