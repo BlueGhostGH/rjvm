@@ -1,10 +1,8 @@
-use rjvm::Result;
-
 const FILE: &[u8] = include_bytes!("../Main.class");
 
-fn try_main() -> Result<String>
+fn try_main() -> rjvm::parse::error::Result<String>
 {
-    let class = rjvm::Class::parse_bytes(FILE)?;
+    let class = rjvm::parse_class_file(FILE)?;
 
     Ok(format!("{class:?}"))
 }

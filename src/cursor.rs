@@ -86,7 +86,7 @@ impl Integer for u32
     }
 }
 
-mod error
+pub mod error
 {
     use std::{error, fmt, result};
 
