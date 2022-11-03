@@ -1,10 +1,8 @@
-use rjvm::parse::raw;
-
 const FILE: &[u8] = include_bytes!("../Main.class");
 
-fn try_main() -> raw::error::Result<String>
+fn try_main() -> rjvm::error::Result<String>
 {
-    let class = rjvm::parse_raw_class_file(FILE)?;
+    let class = rjvm::parse(FILE)?;
 
     Ok(format!("{class:?}"))
 }
@@ -12,7 +10,7 @@ fn try_main() -> raw::error::Result<String>
 fn main()
 {
     match try_main() {
-        Ok(res) => println!("{res:?}"),
+        Ok(res) => println!("{res}"),
         Err(err) => panic!("{err:?}"),
     }
 }

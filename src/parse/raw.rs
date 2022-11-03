@@ -5,13 +5,13 @@ use self::error::{Error, Result};
 #[derive(Debug)]
 pub struct ClassFile
 {
-    magic: u32,
+    pub(super) magic: u32,
 
-    minor: u16,
-    major: u16,
+    pub(super) minor: u16,
+    pub(super) major: u16,
 
-    constant_pool_count: u16,
-    constant_pool: Box<[Constant]>,
+    pub(super) constant_pool_count: u16,
+    pub(super) constant_pool: Box<[Constant]>,
 }
 
 impl ClassFile
@@ -147,7 +147,7 @@ impl ClassFile
 }
 
 #[derive(Debug)]
-enum Constant
+pub(super) enum Constant
 {
     Class
     {
