@@ -1,10 +1,11 @@
 #![allow(dead_code, incomplete_features)]
 #![feature(generic_const_exprs)]
 
-mod cursor;
+use parse::raw;
+
 pub mod parse;
 
-pub fn parse_class_file(source: &[u8]) -> parse::error::Result<parse::ClassFile>
+pub fn parse_raw_class_file(source: &[u8]) -> raw::error::Result<raw::ClassFile>
 {
-    parse::ClassFile::parse_bytes(source)
+    raw::ClassFile::parse_bytes(source)
 }

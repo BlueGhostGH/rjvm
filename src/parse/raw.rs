@@ -1,4 +1,4 @@
-use crate::cursor::Cursor;
+use crate::parse::cursor::Cursor;
 
 use self::error::{Error, Result};
 
@@ -17,7 +17,7 @@ pub struct ClassFile
 impl ClassFile
 {
     #[must_use]
-    pub(super) fn parse_bytes(bytes: &[u8]) -> Result<Self>
+    pub(crate) fn parse_bytes(bytes: &[u8]) -> Result<Self>
     {
         let mut cursor = Cursor::new(bytes);
 
@@ -193,7 +193,7 @@ pub mod error
 {
     use std::{error, fmt, result};
 
-    use crate::cursor;
+    use crate::parse::cursor;
 
     pub type Result<T> = result::Result<T, Error>;
 

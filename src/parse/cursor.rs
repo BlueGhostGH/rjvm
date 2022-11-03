@@ -12,7 +12,7 @@ impl<'a> Cursor<'a>
 {
     pub const fn new(bytes: &'a [u8]) -> Self
     {
-        Self { bytes }
+        Cursor { bytes }
     }
 
     pub fn read_integer<I>(&mut self) -> Result<I>
@@ -68,21 +68,21 @@ impl Integer for u8
 {
     fn from_be_bytes(bytes: [u8; Self::SIZE]) -> Self
     {
-        Self::from_be_bytes(bytes)
+        u8::from_be_bytes(bytes)
     }
 }
 impl Integer for u16
 {
     fn from_be_bytes(bytes: [u8; Self::SIZE]) -> Self
     {
-        Self::from_be_bytes(bytes)
+        u16::from_be_bytes(bytes)
     }
 }
 impl Integer for u32
 {
     fn from_be_bytes(bytes: [u8; Self::SIZE]) -> Self
     {
-        Self::from_be_bytes(bytes)
+        u32::from_be_bytes(bytes)
     }
 }
 
