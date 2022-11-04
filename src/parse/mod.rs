@@ -69,7 +69,9 @@ mod constant_pool
     pub(super) struct ConstantPool
     {
         classes: Box<[Class]>,
+        strings: Box<[constant::String]>,
         name_and_types: Box<[NameAndType]>,
+        utf8s: Box<[Utf8]>,
     }
 
     impl ConstantPool
@@ -108,6 +110,39 @@ mod constant_pool
                         }?;
 
                         Ok(Class { name })
+                    }
+                })
+                .collect::<error::Result<_>>()?;
+
+            let strings = constant_pool
+                .iter()
+                .filter_map(|constant| {
+                    if let raw::Constant::String { string_index } = constant {
+                        Some(normalise_index(string_index))
+                    } else {
+                        None
+                    }
+                })
+                .map(|string_index| {
+                    if !(1..constant_pool_count).contains(&string_index) {
+                        Err(error::Error::OutOfRangeIndex(string_index))?
+                    } else {
+                        // This will never fail as we have checked
+                        // that our index is within bounds
+                        let string = constant_pool.get(string_index).unwrap();
+
+                        let string = if let raw::Constant::Utf8 { bytes, .. } = string {
+                            String::from_utf8(bytes.clone().into_vec())
+                                .map(String::into_boxed_str)
+                                .map_err(error::Error::from)
+                        } else {
+                            Err(error::Error::UnexpectedConstantKind {
+                                expected: error::ConstantKind::Utf8,
+                                actual: string.into(),
+                            })
+                        }?;
+
+                        Ok(constant::String { string })
                     }
                 })
                 .collect::<error::Result<_>>()?;
@@ -169,9 +204,30 @@ mod constant_pool
                 })
                 .collect::<error::Result<_>>()?;
 
+            let utf8s = constant_pool
+                .iter()
+                .filter_map(|constant| {
+                    if let raw::Constant::Utf8 { bytes, .. } = constant {
+                        Some(bytes)
+                    } else {
+                        None
+                    }
+                })
+                .cloned()
+                .map(|bytes| {
+                    let bytes = String::from_utf8(bytes.into_vec())
+                        .map(String::into_boxed_str)
+                        .map_err(error::Error::from)?;
+
+                    Ok(Utf8 { bytes })
+                })
+                .collect::<error::Result<_>>()?;
+
             Ok(ConstantPool {
                 classes,
+                strings,
                 name_and_types,
+                utf8s,
             })
         }
     }
@@ -187,6 +243,21 @@ mod constant_pool
     {
         pub(super) name: Box<str>,
         pub(super) descriptor: Box<str>,
+    }
+
+    #[derive(Debug)]
+    pub(super) struct Utf8
+    {
+        pub(super) bytes: Box<str>,
+    }
+
+    pub(super) mod constant
+    {
+        #[derive(Debug)]
+        pub(super) struct String
+        {
+            pub(super) string: Box<str>,
+        }
     }
 
     pub mod error
