@@ -16,7 +16,6 @@ pub struct ClassFile
 
 impl ClassFile
 {
-    #[must_use]
     pub(crate) fn parse_bytes(bytes: &[u8]) -> Result<Self>
     {
         let mut cursor = Cursor::new(bytes);

@@ -23,7 +23,7 @@ impl Class
         let version = Version(class_file.major, class_file.minor);
 
         let constant_pool = constant_pool::ConstantPool::new(
-            &*class_file.constant_pool,
+            &class_file.constant_pool,
             class_file.constant_pool_count as usize,
         )?;
 
@@ -60,6 +60,11 @@ mod constant_pool
 {
     use crate::raw;
 
+    fn normalise_index(index: &u16) -> usize
+    {
+        (*index) as usize - 1
+    }
+
     #[derive(Debug)]
     pub(super) struct ConstantPool
     {
@@ -78,7 +83,7 @@ mod constant_pool
                 .iter()
                 .filter_map(|constant| {
                     if let raw::Constant::Class { name_index } = constant {
-                        Some((*name_index) as usize)
+                        Some(normalise_index(name_index))
                     } else {
                         None
                     }
@@ -87,9 +92,8 @@ mod constant_pool
                     if !(1..constant_pool_count).contains(&name_index) {
                         Err(error::Error::OutOfRangeIndex(name_index))?
                     } else {
-                        // This will never fail as we have
-                        // already checked that our index
-                        // is within bounds
+                        // This will never fail as we have checked
+                        // that our index is within bounds
                         let name = constant_pool.get(name_index).unwrap();
 
                         let name = if let raw::Constant::Utf8 { bytes, .. } = name {
@@ -116,7 +120,10 @@ mod constant_pool
                         descriptor_index,
                     } = constant
                     {
-                        Some(((*name_index) as usize, (*descriptor_index) as usize))
+                        Some((
+                            normalise_index(name_index),
+                            normalise_index(descriptor_index),
+                        ))
                     } else {
                         None
                     }
@@ -130,10 +137,8 @@ mod constant_pool
                             Err(error::Error::OutOfRangeIndex(descriptor_index))?
                         }
                         _ => {
-                            // These will never fail as we
-                            // have already checked that
-                            // our indices are within
-                            // bounds
+                            // These will never fail as we have checked
+                            // that our indices are within bounds
                             let name = constant_pool.get(name_index).unwrap();
                             let descriptor = constant_pool.get(descriptor_index).unwrap();
 

@@ -50,8 +50,8 @@ impl<'a> Cursor<'a>
             self.bytes = &self.bytes[C..];
 
             // This will never fail as we have sliced off
-            // exactly the length of our array from the
-            // inner bytes ref slice
+            // exactly the length of our array from
+            // the inner bytes ref slice
             Ok(bytes.try_into().unwrap())
         }
     }
