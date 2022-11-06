@@ -81,6 +81,30 @@ mod constant_pool
             constant_pool_count: usize,
         ) -> error::Result<Self>
         {
+            let mut utf8_index_keeper = IndexKeeper::init(constant_pool_count);
+
+            let utf8s = constant_pool
+                .iter()
+                .enumerate()
+                .filter_map(|(original_index, constant)| {
+                    if let raw::Constant::Utf8 { bytes, .. } = constant {
+                        utf8_index_keeper.keep(original_index);
+
+                        Some(bytes)
+                    } else {
+                        None
+                    }
+                })
+                .cloned()
+                .map(|bytes| {
+                    let bytes = String::from_utf8(bytes.into_vec())
+                        .map(String::into_boxed_str)
+                        .map_err(error::Error::from)?;
+
+                    Ok(Utf8 { bytes })
+                })
+                .collect::<error::Result<_>>()?;
+
             let classes = constant_pool
                 .iter()
                 .filter_map(|constant| {
@@ -93,24 +117,21 @@ mod constant_pool
                 .map(|name_index| {
                     if !(1..constant_pool_count).contains(&name_index) {
                         Err(error::Error::OutOfRangeIndex(name_index))?
-                    } else {
-                        // This will never fail as we have checked
-                        // that our index is within bounds
-                        let name = constant_pool.get(name_index).unwrap();
-
-                        let name = if let raw::Constant::Utf8 { bytes, .. } = name {
-                            String::from_utf8(bytes.clone().into_vec())
-                                .map(String::into_boxed_str)
-                                .map_err(error::Error::from)
-                        } else {
-                            Err(error::Error::UnexpectedConstantKind {
-                                expected: error::ConstantKind::Utf8,
-                                actual: name.into(),
-                            })
-                        }?;
-
-                        Ok(Class { name })
                     }
+
+                    // This will never fail as we have checked
+                    // that our index is within bounds
+                    let name = constant_pool.get(name_index).unwrap();
+                    if !matches!(name, raw::Constant::Utf8 { .. }) {
+                        Err(error::Error::UnexpectedConstantKind {
+                            expected: error::ConstantKind::Utf8,
+                            actual: name.into(),
+                        })?
+                    }
+
+                    let name_index = utf8_index_keeper.fetch(name_index);
+
+                    Ok(Class { name_index })
                 })
                 .collect::<error::Result<_>>()?;
 
@@ -126,24 +147,21 @@ mod constant_pool
                 .map(|string_index| {
                     if !(1..constant_pool_count).contains(&string_index) {
                         Err(error::Error::OutOfRangeIndex(string_index))?
-                    } else {
-                        // This will never fail as we have checked
-                        // that our index is within bounds
-                        let string = constant_pool.get(string_index).unwrap();
-
-                        let string = if let raw::Constant::Utf8 { bytes, .. } = string {
-                            String::from_utf8(bytes.clone().into_vec())
-                                .map(String::into_boxed_str)
-                                .map_err(error::Error::from)
-                        } else {
-                            Err(error::Error::UnexpectedConstantKind {
-                                expected: error::ConstantKind::Utf8,
-                                actual: string.into(),
-                            })
-                        }?;
-
-                        Ok(constant::String { string })
                     }
+
+                    // This will never fail as we have checked
+                    // that our index is within bounds
+                    let string = constant_pool.get(string_index).unwrap();
+                    if !matches!(string, raw::Constant::Utf8 { .. }) {
+                        Err(error::Error::UnexpectedConstantKind {
+                            expected: error::ConstantKind::Utf8,
+                            actual: string.into(),
+                        })?
+                    }
+
+                    let string_index = utf8_index_keeper.fetch(string_index);
+
+                    Ok(constant::String { string_index })
                 })
                 .collect::<error::Result<_>>()?;
 
@@ -164,62 +182,39 @@ mod constant_pool
                     }
                 })
                 .map(|(name_index, descriptor_index)| {
-                    match 1..constant_pool_count - 1 {
-                        range if !range.contains(&name_index) => {
-                            Err(error::Error::OutOfRangeIndex(name_index))?
-                        }
-                        range if !range.contains(&descriptor_index) => {
-                            Err(error::Error::OutOfRangeIndex(descriptor_index))?
-                        }
-                        _ => {
-                            // These will never fail as we have checked
-                            // that our indices are within bounds
-                            let name = constant_pool.get(name_index).unwrap();
-                            let descriptor = constant_pool.get(descriptor_index).unwrap();
-
-                            let name = if let raw::Constant::Utf8 { bytes, .. } = name {
-                                String::from_utf8(bytes.clone().into_vec())
-                                    .map(String::into_boxed_str)
-                                    .map_err(error::Error::from)
-                            } else {
-                                Err(error::Error::UnexpectedConstantKind {
-                                    expected: error::ConstantKind::Utf8,
-                                    actual: name.into(),
-                                })
-                            }?;
-                            let descriptor = if let raw::Constant::Utf8 { bytes, .. } = descriptor {
-                                String::from_utf8(bytes.clone().into_vec())
-                                    .map(String::into_boxed_str)
-                                    .map_err(error::Error::from)
-                            } else {
-                                Err(error::Error::UnexpectedConstantKind {
-                                    expected: error::ConstantKind::Utf8,
-                                    actual: descriptor.into(),
-                                })
-                            }?;
-
-                            Ok(NameAndType { name, descriptor })
-                        }
+                    let bounds = 1..constant_pool_count - 1;
+                    if !bounds.contains(&name_index) {
+                        Err(error::Error::OutOfRangeIndex(name_index))?
                     }
-                })
-                .collect::<error::Result<_>>()?;
-
-            let utf8s = constant_pool
-                .iter()
-                .filter_map(|constant| {
-                    if let raw::Constant::Utf8 { bytes, .. } = constant {
-                        Some(bytes)
-                    } else {
-                        None
+                    if !bounds.contains(&descriptor_index) {
+                        Err(error::Error::OutOfRangeIndex(descriptor_index))?
                     }
-                })
-                .cloned()
-                .map(|bytes| {
-                    let bytes = String::from_utf8(bytes.into_vec())
-                        .map(String::into_boxed_str)
-                        .map_err(error::Error::from)?;
 
-                    Ok(Utf8 { bytes })
+                    // These will never fail as we have checked
+                    // that our indices are within bounds
+                    let name = constant_pool.get(name_index).unwrap();
+                    let descriptor = constant_pool.get(descriptor_index).unwrap();
+
+                    if !matches!(name, raw::Constant::Utf8 { .. }) {
+                        Err(error::Error::UnexpectedConstantKind {
+                            expected: error::ConstantKind::Utf8,
+                            actual: name.into(),
+                        })?
+                    }
+                    if !matches!(descriptor, raw::Constant::Utf8 { .. }) {
+                        Err(error::Error::UnexpectedConstantKind {
+                            expected: error::ConstantKind::Utf8,
+                            actual: descriptor.into(),
+                        })?
+                    }
+
+                    let name_index = utf8_index_keeper.fetch(name_index);
+                    let descriptor_index = utf8_index_keeper.fetch(descriptor_index);
+
+                    Ok(NameAndType {
+                        name_index,
+                        descriptor_index,
+                    })
                 })
                 .collect::<error::Result<_>>()?;
 
@@ -235,14 +230,23 @@ mod constant_pool
     #[derive(Debug)]
     pub(super) struct Class
     {
-        pub(super) name: Box<str>,
+        pub(super) name_index: usize,
+    }
+
+    pub(super) mod constant
+    {
+        #[derive(Debug)]
+        pub(super) struct String
+        {
+            pub(super) string_index: usize,
+        }
     }
 
     #[derive(Debug)]
     pub(super) struct NameAndType
     {
-        pub(super) name: Box<str>,
-        pub(super) descriptor: Box<str>,
+        pub(super) name_index: usize,
+        pub(super) descriptor_index: usize,
     }
 
     #[derive(Debug)]
@@ -251,12 +255,32 @@ mod constant_pool
         pub(super) bytes: Box<str>,
     }
 
-    pub(super) mod constant
+    #[derive(Debug)]
+    struct IndexKeeper
     {
-        #[derive(Debug)]
-        pub(super) struct String
+        indices: Vec<usize>,
+        count: usize,
+    }
+
+    impl IndexKeeper
+    {
+        fn init(len: usize) -> Self
         {
-            pub(super) string: Box<str>,
+            let indices = vec![0; len];
+            let count = 0;
+
+            IndexKeeper { indices, count }
+        }
+
+        fn keep(&mut self, original_index: usize)
+        {
+            self.indices[original_index] = self.count;
+            self.count += 1;
+        }
+
+        fn fetch(&self, original_index: usize) -> usize
+        {
+            self.indices[original_index]
         }
     }
 
