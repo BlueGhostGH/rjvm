@@ -69,6 +69,7 @@ mod constant_pool
     pub(super) struct ConstantPool
     {
         classes: Box<[Class]>,
+        field_refs: Box<[FieldRef]>,
         strings: Box<[constant::String]>,
         name_and_types: Box<[NameAndType]>,
         utf8s: Box<[Utf8]>,
@@ -82,7 +83,6 @@ mod constant_pool
         ) -> error::Result<Self>
         {
             let mut utf8_index_keeper = IndexKeeper::init(constant_pool_count);
-
             let utf8s = constant_pool
                 .iter()
                 .enumerate()
@@ -105,10 +105,14 @@ mod constant_pool
                 })
                 .collect::<error::Result<_>>()?;
 
+            let mut class_index_keeper = IndexKeeper::init(constant_pool_count);
             let classes = constant_pool
                 .iter()
-                .filter_map(|constant| {
+                .enumerate()
+                .filter_map(|(original_index, constant)| {
                     if let raw::Constant::Class { name_index } = constant {
+                        class_index_keeper.keep(original_index);
+
                         Some(normalise_index(name_index))
                     } else {
                         None
@@ -165,14 +169,18 @@ mod constant_pool
                 })
                 .collect::<error::Result<_>>()?;
 
+            let mut name_and_type_index_keeper = IndexKeeper::init(constant_pool_count);
             let name_and_types = constant_pool
                 .iter()
-                .filter_map(|constant| {
+                .enumerate()
+                .filter_map(|(original_index, constant)| {
                     if let raw::Constant::NameAndType {
                         name_index,
                         descriptor_index,
                     } = constant
                     {
+                        name_and_type_index_keeper.keep(original_index);
+
                         Some((
                             normalise_index(name_index),
                             normalise_index(descriptor_index),
@@ -218,8 +226,62 @@ mod constant_pool
                 })
                 .collect::<error::Result<_>>()?;
 
+            let field_refs = constant_pool
+                .iter()
+                .filter_map(|constant| {
+                    if let raw::Constant::FieldRef {
+                        class_index,
+                        name_and_type_index,
+                    } = constant
+                    {
+                        Some((
+                            normalise_index(class_index),
+                            normalise_index(name_and_type_index),
+                        ))
+                    } else {
+                        None
+                    }
+                })
+                .map(|(class_index, name_and_type_index)| {
+                    let bounds = 1..constant_pool_count - 1;
+                    if !bounds.contains(&class_index) {
+                        Err(error::Error::OutOfRangeIndex(class_index))?
+                    }
+                    if !bounds.contains(&name_and_type_index) {
+                        Err(error::Error::OutOfRangeIndex(name_and_type_index))?
+                    }
+
+                    // These will never fail as we have checked
+                    // that our indices are within bounds
+                    let class = constant_pool.get(class_index).unwrap();
+                    let name_and_type = constant_pool.get(name_and_type_index).unwrap();
+
+                    if !matches!(class, raw::Constant::Class { .. }) {
+                        Err(error::Error::UnexpectedConstantKind {
+                            expected: error::ConstantKind::Class,
+                            actual: class.into(),
+                        })?
+                    }
+                    if !matches!(name_and_type, raw::Constant::NameAndType { .. }) {
+                        Err(error::Error::UnexpectedConstantKind {
+                            expected: error::ConstantKind::NameAndType,
+                            actual: name_and_type.into(),
+                        })?
+                    }
+
+                    let class_index = class_index_keeper.fetch(class_index);
+                    let name_and_type_index = name_and_type_index_keeper.fetch(name_and_type_index);
+
+                    Ok(FieldRef {
+                        class_index,
+                        name_and_type_index,
+                    })
+                })
+                .collect::<error::Result<_>>()?;
+
             Ok(ConstantPool {
                 classes,
+                field_refs,
                 strings,
                 name_and_types,
                 utf8s,
@@ -231,6 +293,13 @@ mod constant_pool
     pub(super) struct Class
     {
         pub(super) name_index: usize,
+    }
+
+    #[derive(Debug)]
+    pub(super) struct FieldRef
+    {
+        pub(super) class_index: usize,
+        pub(super) name_and_type_index: usize,
     }
 
     pub(super) mod constant
